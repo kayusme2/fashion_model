@@ -16,7 +16,7 @@ import io
 import tempfile
 
 # Configure Hugging Face Token (preferably via environment variable)
-HF_TOKEN = os.getenv("HF_TOKEN", "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")
+HF_TOKEN = os.getenv("HF_TOKEN", "hf_lbujlsdfsdfprCsaSOFWXmLYNcVhumDVEYQn")
 if not HF_TOKEN:
     raise ValueError("Hugging Face token must be set via HF_TOKEN environment variable.")
 
