@@ -18,7 +18,7 @@ import tempfile
 
 # Configure HTTP backend with retries for network timeouts
 def http_backend_factory():
-    return urllib3.PoolManager(retries=urllib3.Retry(total=5, backoff_factor=1))
+    return urllib3.PoolManager(retries=urllib3.Retry(total=10, backoff_factor=1))
 
 configure_http_backend(http_backend_factory)
 
@@ -28,14 +28,14 @@ app = FastAPI()
 # Add CORS middleware to allow frontend requests
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://fashion-model-front.onrender.com", "http://localhost:62155"],  # Replace with your frontend URL
+    allow_origins=["https://fashion-model-front.onrender.com", "http://localhost:10000"],  # Replace with your frontend URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Check HF_TOKEN
-HF_TOKEN = os.getenv("HF_TOKEN", "YOUR_HUGGING_FACE_TOKEN_HERE")
+HF_TOKEN = os.getenv("HF_TOKEN", "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")
 if not HF_TOKEN or HF_TOKEN == "YOUR_HUGGING_FACE_TOKEN_HERE":
     raise ValueError("Hugging Face token must be set via HF_TOKEN environment variable.")
 
@@ -758,7 +758,7 @@ async def generate_ad_image_endpoint(file: UploadFile = File(...), prompt: str =
 if __name__ == "__main__":
     import uvicorn
     print("Starting server.py...")
-    port = int(os.getenv("PORT", 62155))
+    port = int(os.getenv("PORT", 10000))
     print(f"Binding to port: {port}")
     uvicorn.run(app, host="0.0.0.0", port=port)
     print("Uvicorn started successfully")
