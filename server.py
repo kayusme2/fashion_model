@@ -28,7 +28,7 @@ app = FastAPI()
 # Add CORS middleware to allow frontend requests
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://your-frontend-name.onrender.com", "http://localhost:8000"],  # Replace with your frontend URL
+    allow_origins=["https://your-frontend-name.onrender.com", "http://localhost:80"],  # Replace with your frontend URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -756,5 +756,5 @@ async def generate_ad_image_endpoint(file: UploadFile = File(...), prompt: str =
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", 8000))  # Use Render's PORT, default to 8000
+    port = int(os.getenv("PORT", 80))  # Use Render's PORT, default to 80
     uvicorn.run(app, host="0.0.0.0", port=port)
