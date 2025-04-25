@@ -1,7 +1,7 @@
 fastapi==0.115.0
 uvicorn==0.30.6
 diffusers==0.29.0
-torch==2.3.0
+torch==2.3.1+cpu
 controlnet_aux==0.0.7
 mediapipe==0.10.14
 rembg==2.0.57
