@@ -1,4 +1,9 @@
+print("Starting server.py...")
+
 import os
+print("Imported os")
+
+# Existing imports
 import re
 from PIL import Image
 import cv2
@@ -14,11 +19,14 @@ from fastapi.responses import FileResponse
 import urllib3
 import io
 import tempfile
+print("All imports completed")
 
-# Configure Hugging Face Token (preferably via environment variable)
-HF_TOKEN = os.getenv("HF_TOKEN", "hf_lbujlsdfsdfprCsaSOFWXmLYNcVhumDVEYQn")
-if not HF_TOKEN:
+# Check HF_TOKEN
+HF_TOKEN = os.getenv("HF_TOKEN", "YOUR_HUGGING_FACE_TOKEN_HERE")
+if not HF_TOKEN or HF_TOKEN == "YOUR_HUGGING_FACE_TOKEN_HERE":
+    print("Error: HF_TOKEN is not set properly")
     raise ValueError("Hugging Face token must be set via HF_TOKEN environment variable.")
+print("HF_TOKEN set successfully")
 
 # Configure HTTP backend with retries for network timeouts
 def http_backend_factory():
