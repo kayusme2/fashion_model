@@ -1,9 +1,4 @@
-print("Starting server.py...")
-
 import os
-print("Imported os")
-
-# Existing imports
 import re
 from PIL import Image
 import cv2
@@ -16,30 +11,10 @@ from huggingface_hub import configure_http_backend, HfFolder
 from huggingface_hub.utils import HfHubHTTPError
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 import urllib3
 import io
 import tempfile
-print("All imports completed")
-
-
-
-from fastapi import FastAPI
-print("Starting minimal FastAPI app...")
-app = FastAPI()
-print("App instance created")
-
-@app.get("/")
-async def root():
-    return {"message": "Hello, World!"}
-
-print("App setup complete")
-
-# Check HF_TOKEN
-HF_TOKEN = os.getenv("HF_TOKEN", "YOUR_HUGGING_FACE_TOKEN_HERE")
-if not HF_TOKEN or HF_TOKEN == "YOUR_HUGGING_FACE_TOKEN_HERE":
-    print("Error: HF_TOKEN is not set properly")
-    raise ValueError("Hugging Face token must be set via HF_TOKEN environment variable.")
-print("HF_TOKEN set successfully")
 
 # Configure HTTP backend with retries for network timeouts
 def http_backend_factory():
@@ -47,6 +22,22 @@ def http_backend_factory():
 
 configure_http_backend(http_backend_factory)
 
+# Initialize FastAPI app
+app = FastAPI()
+
+# Add CORS middleware to allow frontend requests
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://your-frontend-name.onrender.com", "http://localhost:8000"],  # Replace with your frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Check HF_TOKEN
+HF_TOKEN = os.getenv("HF_TOKEN", "YOUR_HUGGING_FACE_TOKEN_HERE")
+if not HF_TOKEN or HF_TOKEN == "YOUR_HUGGING_FACE_TOKEN_HERE":
+    raise ValueError("Hugging Face token must be set via HF_TOKEN environment variable.")
 
 # Define OpenPose skeleton connections (based on OpenPose body_25 model)
 POSE_CONNECTIONS = [
@@ -104,8 +95,292 @@ POSE_KEYPOINTS = {
         (0.2, 0.0),  # 18: Left fingers
         (0.2, 0.0),  # 19: Left fingers
     ],
-    # Add definitions for other poses (arms_crossed, sitting_neutral, etc.)
-    # Simplified for brevity; you'll need to define all 15 poses with accurate coordinates
+    "arms_crossed": [
+        (0.5, 0.1),  # 0: Head
+        (0.5, 0.2),  # 1: Neck
+        (0.6, 0.3),  # 2: Right shoulder
+        (0.5, 0.4),  # 3: Right elbow (crossed over chest)
+        (0.4, 0.5),  # 4: Right wrist (near left side)
+        (0.4, 0.3),  # 5: Left shoulder
+        (0.5, 0.4),  # 6: Left elbow (crossed over chest)
+        (0.6, 0.5),  # 7: Left wrist (near right side)
+        (0.5, 0.4),  # 8: Mid torso
+        (0.6, 0.6),  # 9: Right hip
+        (0.6, 0.8),  # 10: Right knee
+        (0.6, 0.9),  # 11: Right ankle
+        (0.4, 0.6),  # 12: Left hip
+        (0.4, 0.8),  # 13: Left knee
+        (0.4, 0.9),  # 14: Left ankle
+        (0.4, 0.5),  # 15: Right hand
+        (0.4, 0.5),  # 16: Right fingers
+        (0.6, 0.5),  # 17: Left hand
+        (0.6, 0.5),  # 18: Left fingers
+        (0.6, 0.5),  # 19: Left fingers
+    ],
+    "standing_holding_right": [
+        (0.5, 0.1),  # 0: Head
+        (0.5, 0.2),  # 1: Neck
+        (0.6, 0.3),  # 2: Right shoulder
+        (0.7, 0.4),  # 3: Right elbow (bent, holding)
+        (0.6, 0.5),  # 4: Right wrist (near torso)
+        (0.4, 0.3),  # 5: Left shoulder
+        (0.3, 0.5),  # 6: Left elbow
+        (0.2, 0.7),  # 7: Left wrist
+        (0.5, 0.4),  # 8: Mid torso
+        (0.6, 0.6),  # 9: Right hip
+        (0.6, 0.8),  # 10: Right knee
+        (0.6, 0.9),  # 11: Right ankle
+        (0.4, 0.6),  # 12: Left hip
+        (0.4, 0.8),  # 13: Left knee
+        (0.4, 0.9),  # 14: Left ankle
+        (0.6, 0.5),  # 15: Right hand
+        (0.6, 0.5),  # 16: Right fingers
+        (0.2, 0.7),  # 17: Left hand
+        (0.2, 0.7),  # 18: Left fingers
+        (0.2, 0.7),  # 19: Left fingers
+    ],
+    "standing_holding_left": [
+        (0.5, 0.1),  # 0: Head
+        (0.5, 0.2),  # 1: Neck
+        (0.6, 0.3),  # 2: Right shoulder
+        (0.7, 0.5),  # 3: Right elbow
+        (0.8, 0.7),  # 4: Right wrist
+        (0.4, 0.3),  # 5: Left shoulder
+        (0.3, 0.4),  # 6: Left elbow (bent, holding)
+        (0.4, 0.5),  # 7: Left wrist (near torso)
+        (0.5, 0.4),  # 8: Mid torso
+        (0.6, 0.6),  # 9: Right hip
+        (0.6, 0.8),  # 10: Right knee
+        (0.6, 0.9),  # 11: Right ankle
+        (0.4, 0.6),  # 12: Left hip
+        (0.4, 0.8),  # 13: Left knee
+        (0.4, 0.9),  # 14: Left ankle
+        (0.8, 0.7),  # 15: Right hand
+        (0.8, 0.7),  # 16: Right fingers
+        (0.4, 0.5),  # 17: Left hand
+        (0.4, 0.5),  # 18: Left fingers
+        (0.4, 0.5),  # 19: Left fingers
+    ],
+    "standing_holding_both": [
+        (0.5, 0.1),  # 0: Head
+        (0.5, 0.2),  # 1: Neck
+        (0.6, 0.3),  # 2: Right shoulder
+        (0.6, 0.4),  # 3: Right elbow (bent, holding)
+        (0.5, 0.5),  # 4: Right wrist (near center torso)
+        (0.4, 0.3),  # 5: Left shoulder
+        (0.4, 0.4),  # 6: Left elbow (bent, holding)
+        (0.5, 0.5),  # 7: Left wrist (near center torso)
+        (0.5, 0.4),  # 8: Mid torso
+        (0.6, 0.6),  # 9: Right hip
+        (0.6, 0.8),  # 10: Right knee
+        (0.6, 0.9),  # 11: Right ankle
+        (0.4, 0.6),  # 12: Left hip
+        (0.4, 0.8),  # 13: Left knee
+        (0.4, 0.9),  # 14: Left ankle
+        (0.5, 0.5),  # 15: Right hand
+        (0.5, 0.5),  # 16: Right fingers
+        (0.5, 0.5),  # 17: Left hand
+        (0.5, 0.5),  # 18: Left fingers
+        (0.5, 0.5),  # 19: Left fingers
+    ],
+    "sitting_neutral": [
+        (0.5, 0.1),  # 0: Head
+        (0.5, 0.2),  # 1: Neck
+        (0.6, 0.3),  # 2: Right shoulder
+        (0.7, 0.5),  # 3: Right elbow
+        (0.8, 0.7),  # 4: Right wrist
+        (0.4, 0.3),  # 5: Left shoulder
+        (0.3, 0.5),  # 6: Left elbow
+        (0.2, 0.7),  # 7: Left wrist
+        (0.5, 0.4),  # 8: Mid torso
+        (0.6, 0.5),  # 9: Right hip
+        (0.6, 0.6),  # 10: Right knee (bent, sitting)
+        (0.6, 0.7),  # 11: Right ankle
+        (0.4, 0.5),  # 12: Left hip
+        (0.4, 0.6),  # 13: Left knee (bent, sitting)
+        (0.4, 0.7),  # 14: Left ankle
+        (0.8, 0.7),  # 15: Right hand
+        (0.8, 0.7),  # 16: Right fingers
+        (0.2, 0.7),  # 17: Left hand
+        (0.2, 0.7),  # 18: Left fingers
+        (0.2, 0.7),  # 19: Left fingers
+    ],
+    "sitting_holding_right": [
+        (0.5, 0.1),  # 0: Head
+        (0.5, 0.2),  # 1: Neck
+        (0.6, 0.3),  # 2: Right shoulder
+        (0.7, 0.4),  # 3: Right elbow (bent, holding)
+        (0.6, 0.5),  # 4: Right wrist (near torso)
+        (0.4, 0.3),  # 5: Left shoulder
+        (0.3, 0.5),  # 6: Left elbow
+        (0.2, 0.7),  # 7: Left wrist
+        (0.5, 0.4),  # 8: Mid torso
+        (0.6, 0.5),  # 9: Right hip
+        (0.6, 0.6),  # 10: Right knee (bent, sitting)
+        (0.6, 0.7),  # 11: Right ankle
+        (0.4, 0.5),  # 12: Left hip
+        (0.4, 0.6),  # 13: Left knee (bent, sitting)
+        (0.4, 0.7),  # 14: Left ankle
+        (0.6, 0.5),  # 15: Right hand
+        (0.6, 0.5),  # 16: Right fingers
+        (0.2, 0.7),  # 17: Left hand
+        (0.2, 0.7),  # 18: Left fingers
+        (0.2, 0.7),  # 19: Left fingers
+    ],
+    "sitting_holding_left": [
+        (0.5, 0.1),  # 0: Head
+        (0.5, 0.2),  # 1: Neck
+        (0.6, 0.3),  # 2: Right shoulder
+        (0.7, 0.5),  # 3: Right elbow
+        (0.8, 0.7),  # 4: Right wrist
+        (0.4, 0.3),  # 5: Left shoulder
+        (0.3, 0.4),  # 6: Left elbow (bent, holding)
+        (0.4, 0.5),  # 7: Left wrist (near torso)
+        (0.5, 0.4),  # 8: Mid torso
+        (0.6, 0.5),  # 9: Right hip
+        (0.6, 0.6),  # 10: Right knee (bent, sitting)
+        (0.6, 0.7),  # 11: Right ankle
+        (0.4, 0.5),  # 12: Left hip
+        (0.4, 0.6),  # 13: Left knee (bent, sitting)
+        (0.4, 0.7),  # 14: Left ankle
+        (0.8, 0.7),  # 15: Right hand
+        (0.8, 0.7),  # 16: Right fingers
+        (0.4, 0.5),  # 17: Left hand
+        (0.4, 0.5),  # 18: Left fingers
+        (0.4, 0.5),  # 19: Left fingers
+    ],
+    "walking_right_leg_forward": [
+        (0.5, 0.1),  # 0: Head
+        (0.5, 0.2),  # 1: Neck
+        (0.6, 0.3),  # 2: Right shoulder
+        (0.7, 0.5),  # 3: Right elbow
+        (0.8, 0.7),  # 4: Right wrist
+        (0.4, 0.3),  # 5: Left shoulder
+        (0.3, 0.5),  # 6: Left elbow
+        (0.2, 0.7),  # 7: Left wrist
+        (0.5, 0.4),  # 8: Mid torso
+        (0.6, 0.6),  # 9: Right hip
+        (0.6, 0.7),  # 10: Right knee (forward)
+        (0.6, 0.8),  # 11: Right ankle
+        (0.4, 0.6),  # 12: Left hip
+        (0.4, 0.8),  # 13: Left knee (back)
+        (0.4, 0.9),  # 14: Left ankle
+        (0.8, 0.7),  # 15: Right hand
+        (0.8, 0.7),  # 16: Right fingers
+        (0.2, 0.7),  # 17: Left hand
+        (0.2, 0.7),  # 18: Left fingers
+        (0.2, 0.7),  # 19: Left fingers
+    ],
+    "walking_left_leg_forward": [
+        (0.5, 0.1),  # 0: Head
+        (0.5, 0.2),  # 1: Neck
+        (0.6, 0.3),  # 2: Right shoulder
+        (0.7, 0.5),  # 3: Right elbow
+        (0.8, 0.7),  # 4: Right wrist
+        (0.4, 0.3),  # 5: Left shoulder
+        (0.3, 0.5),  # 6: Left elbow
+        (0.2, 0.7),  # 7: Left wrist
+        (0.5, 0.4),  # 8: Mid torso
+        (0.6, 0.6),  # 9: Right hip
+        (0.6, 0.8),  # 10: Right knee (back)
+        (0.6, 0.9),  # 11: Right ankle
+        (0.4, 0.6),  # 12: Left hip
+        (0.4, 0.7),  # 13: Left knee (forward)
+        (0.4, 0.8),  # 14: Left ankle
+        (0.8, 0.7),  # 15: Right hand
+        (0.8, 0.7),  # 16: Right fingers
+        (0.2, 0.7),  # 17: Left hand
+        (0.2, 0.7),  # 18: Left fingers
+        (0.2, 0.7),  # 19: Left fingers
+    ],
+    "leaning_forward": [
+        (0.5, 0.2),  # 0: Head (forward)
+        (0.5, 0.3),  # 1: Neck
+        (0.6, 0.4),  # 2: Right shoulder
+        (0.7, 0.6),  # 3: Right elbow
+        (0.8, 0.8),  # 4: Right wrist
+        (0.4, 0.4),  # 5: Left shoulder
+        (0.3, 0.6),  # 6: Left elbow
+        (0.2, 0.8),  # 7: Left wrist
+        (0.5, 0.5),  # 8: Mid torso (bent forward)
+        (0.6, 0.6),  # 9: Right hip
+        (0.6, 0.8),  # 10: Right knee
+        (0.6, 0.9),  # 11: Right ankle
+        (0.4, 0.6),  # 12: Left hip
+        (0.4, 0.8),  # 13: Left knee
+        (0.4, 0.9),  # 14: Left ankle
+        (0.8, 0.8),  # 15: Right hand
+        (0.8, 0.8),  # 16: Right fingers
+        (0.2, 0.8),  # 17: Left hand
+        (0.2, 0.8),  # 18: Left fingers
+        (0.2, 0.8),  # 19: Left fingers
+    ],
+    "leaning_backward": [
+        (0.5, 0.0),  # 0: Head (backward)
+        (0.5, 0.1),  # 1: Neck
+        (0.6, 0.2),  # 2: Right shoulder
+        (0.7, 0.4),  # 3: Right elbow
+        (0.8, 0.6),  # 4: Right wrist
+        (0.4, 0.2),  # 5: Left shoulder
+        (0.3, 0.4),  # 6: Left elbow
+        (0.2, 0.6),  # 7: Left wrist
+        (0.5, 0.3),  # 8: Mid torso (bent backward)
+        (0.6, 0.6),  # 9: Right hip
+        (0.6, 0.8),  # 10: Right knee
+        (0.6, 0.9),  # 11: Right ankle
+        (0.4, 0.6),  # 12: Left hip
+        (0.4, 0.8),  # 13: Left knee
+        (0.4, 0.9),  # 14: Left ankle
+        (0.8, 0.6),  # 15: Right hand
+        (0.8, 0.6),  # 16: Right fingers
+        (0.2, 0.6),  # 17: Left hand
+        (0.2, 0.6),  # 18: Left fingers
+        (0.2, 0.6),  # 19: Left fingers
+    ],
+    "crouching": [
+        (0.5, 0.3),  # 0: Head
+        (0.5, 0.4),  # 1: Neck
+        (0.6, 0.5),  # 2: Right shoulder
+        (0.7, 0.6),  # 3: Right elbow
+        (0.8, 0.7),  # 4: Right wrist
+        (0.4, 0.5),  # 5: Left shoulder
+        (0.3, 0.6),  # 6: Left elbow
+        (0.2, 0.7),  # 7: Left wrist
+        (0.5, 0.6),  # 8: Mid torso
+        (0.6, 0.7),  # 9: Right hip
+        (0.6, 0.8),  # 10: Right knee (bent, crouching)
+        (0.6, 0.9),  # 11: Right ankle
+        (0.4, 0.7),  # 12: Left hip
+        (0.4, 0.8),  # 13: Left knee (bent, crouching)
+        (0.4, 0.9),  # 14: Left ankle
+        (0.8, 0.7),  # 15: Right hand
+        (0.8, 0.7),  # 16: Right fingers
+        (0.2, 0.7),  # 17: Left hand
+        (0.2, 0.7),  # 18: Left fingers
+        (0.2, 0.7),  # 19: Left fingers
+    ],
+    "turning_sideways": [
+        (0.6, 0.1),  # 0: Head (turned right)
+        (0.6, 0.2),  # 1: Neck
+        (0.7, 0.3),  # 2: Right shoulder (visible)
+        (0.8, 0.5),  # 3: Right elbow
+        (0.9, 0.7),  # 4: Right wrist
+        (0.5, 0.3),  # 5: Left shoulder (partially visible)
+        (0.4, 0.5),  # 6: Left elbow
+        (0.3, 0.7),  # 7: Left wrist
+        (0.6, 0.4),  # 8: Mid torso
+        (0.7, 0.6),  # 9: Right hip
+        (0.7, 0.8),  # 10: Right knee
+        (0.7, 0.9),  # 11: Right ankle
+        (0.5, 0.6),  # 12: Left hip
+        (0.5, 0.8),  # 13: Left knee
+        (0.5, 0.9),  # 14: Left ankle
+        (0.9, 0.7),  # 15: Right hand
+        (0.9, 0.7),  # 16: Right fingers
+        (0.3, 0.7),  # 17: Left hand
+        (0.3, 0.7),  # 18: Left fingers
+        (0.3, 0.7),  # 19: Left fingers
+    ],
 }
 
 def generate_pose_image(pose_name, image_size=(512, 512)):
@@ -133,7 +408,6 @@ def generate_pose_image(pose_name, image_size=(512, 512)):
     img_pil = Image.fromarray(img)
     return img_pil
 
-# Backend Functions
 def parse_prompt(prompt):
     """Parse the text prompt to extract item type, pose, side/hand, and background."""
     prompt = prompt.lower().strip()
@@ -222,16 +496,17 @@ def generate_model_image(pose, background_desc):
         
         controlnet = ControlNetModel.from_pretrained(
             "lllyasviel/control_v11p_sd15_openpose",
-            torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+            torch_dtype=torch.float16,  # Use float16 to reduce memory usage
             low_cpu_mem_usage=True
         )
         pipeline = StableDiffusionControlNetPipeline.from_pretrained(
             "stabilityai/stable-diffusion-2-1-base",
             controlnet=controlnet,
-            torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+            torch_dtype=torch.float16,  # Use float16 to reduce memory usage
             low_cpu_mem_usage=True
         )
         pipeline.scheduler = UniPCMultistepScheduler.from_config(pipeline.scheduler.config)
+        pipeline.safety_checker = None  # Disable safety checker to save memory
         
         if device == "cuda":
             pipeline.to(device)
@@ -242,13 +517,13 @@ def generate_model_image(pose, background_desc):
         # Generate the pose image dynamically
         openpose_image = generate_pose_image(pose)
         prompt = f"A professional model {pose.replace('_', ' ')}, {background_desc}, high quality, realistic, neutral clothing"
-        image = pipeline(prompt, image=openpose_image, num_inference_steps=20, guidance_scale=7.5).images[0]
+        image = pipeline(prompt, image=openpose_image, num_inference_steps=10, guidance_scale=7.5).images[0]
         
         output_path = os.path.join(tempfile.gettempdir(), f"model_{pose}_{background_desc.replace(' ', '_')}.png")
         image.save(output_path)
         return output_path
     except HfHubHTTPError as e:
-        raise RuntimeError(f"Failed to download models due to network error: {str(e)}.")
+        raise RuntimeError(f"Failed to download models due to network error: {str(e)}")
     except Exception as e:
         raise RuntimeError(f"Model generation failed: {str(e)}")
 
@@ -378,6 +653,7 @@ def place_item(model_image, item_image, position, item_size, angle, scale_factor
 
 def generate_ad_image(item_image_data, item_type, pose, side, background_desc):
     """Generate the final advertising image with the specified item."""
+    model_image_path = None
     try:
         model_image_path = generate_model_image(pose, background_desc)
         
@@ -439,10 +715,17 @@ def generate_ad_image(item_image_data, item_type, pose, side, background_desc):
         return output_path
     except Exception as e:
         raise RuntimeError(f"Ad image generation failed: {str(e)}")
+    finally:
+        # Clean up intermediate file
+        if model_image_path and os.path.exists(model_image_path):
+            try:
+                os.remove(model_image_path)
+            except Exception as e:
+                print(f"Warning: Failed to delete temp file {model_image_path}: {str(e)}")
 
-# API Endpoint
 @app.post("/generate")
 async def generate_ad_image_endpoint(file: UploadFile = File(...), prompt: str = Form(...)):
+    """Generate an ad image based on the uploaded item image and prompt."""
     try:
         # Validate file
         if not file.content_type.startswith("image/"):
@@ -466,10 +749,10 @@ async def generate_ad_image_endpoint(file: UploadFile = File(...), prompt: str =
         )
         
         return FileResponse(output_path, media_type="image/png", filename="ad_image.png")
-    except RuntimeError as e:
-        raise HTTPException(status_code=500, detail=f"{str(e)} For better download performance, install 'hf_xet' on the server.")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate image: {str(e)}")
+        # Log the full error for debugging
+        print(f"Error in /generate endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to generate image. Please try again or contact support.")
 
 if __name__ == "__main__":
     import uvicorn
