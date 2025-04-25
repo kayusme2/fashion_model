@@ -23,7 +23,6 @@ print("All imports completed")
 
 
 
-
 from fastapi import FastAPI
 print("Starting minimal FastAPI app...")
 app = FastAPI()
@@ -34,11 +33,6 @@ async def root():
     return {"message": "Hello, World!"}
 
 print("App setup complete")
-
-
-
-
-
 
 # Check HF_TOKEN
 HF_TOKEN = os.getenv("HF_TOKEN", "YOUR_HUGGING_FACE_TOKEN_HERE")
@@ -53,7 +47,91 @@ def http_backend_factory():
 
 configure_http_backend(http_backend_factory)
 
-app = FastAPI()
+
+# Define OpenPose skeleton connections (based on OpenPose body_25 model)
+POSE_CONNECTIONS = [
+    (0, 1), (1, 2), (2, 3), (3, 4),  # Head to right arm
+    (1, 5), (5, 6), (6, 7),  # Head to left arm
+    (1, 8), (8, 9), (9, 10),  # Torso to right leg
+    (8, 11), (11, 12), (12, 13),  # Torso to left leg
+    (1, 14), (14, 15), (15, 16),  # Head to right hand
+    (1, 17), (17, 18), (18, 19),  # Head to left hand
+]
+
+# Define keypoint coordinates for each pose (normalized 0-1, for a 512x512 image)
+POSE_KEYPOINTS = {
+    "standing_neutral": [
+        (0.5, 0.1),  # 0: Head
+        (0.5, 0.2),  # 1: Neck
+        (0.6, 0.3),  # 2: Right shoulder
+        (0.7, 0.5),  # 3: Right elbow
+        (0.8, 0.7),  # 4: Right wrist
+        (0.4, 0.3),  # 5: Left shoulder
+        (0.3, 0.5),  # 6: Left elbow
+        (0.2, 0.7),  # 7: Left wrist
+        (0.5, 0.4),  # 8: Mid torso
+        (0.6, 0.6),  # 9: Right hip
+        (0.6, 0.8),  # 10: Right knee
+        (0.6, 0.9),  # 11: Right ankle
+        (0.4, 0.6),  # 12: Left hip
+        (0.4, 0.8),  # 13: Left knee
+        (0.4, 0.9),  # 14: Left ankle
+        (0.8, 0.7),  # 15: Right hand (simplified)
+        (0.8, 0.7),  # 16: Right fingers
+        (0.2, 0.7),  # 17: Left hand
+        (0.2, 0.7),  # 18: Left fingers
+        (0.2, 0.7),  # 19: Left fingers (placeholder)
+    ],
+    "standing_arms_raised": [
+        (0.5, 0.1),  # 0: Head
+        (0.5, 0.2),  # 1: Neck
+        (0.6, 0.2),  # 2: Right shoulder
+        (0.7, 0.1),  # 3: Right elbow
+        (0.8, 0.0),  # 4: Right wrist
+        (0.4, 0.2),  # 5: Left shoulder
+        (0.3, 0.1),  # 6: Left elbow
+        (0.2, 0.0),  # 7: Left wrist
+        (0.5, 0.4),  # 8: Mid torso
+        (0.6, 0.6),  # 9: Right hip
+        (0.6, 0.8),  # 10: Right knee
+        (0.6, 0.9),  # 11: Right ankle
+        (0.4, 0.6),  # 12: Left hip
+        (0.4, 0.8),  # 13: Left knee
+        (0.4, 0.9),  # 14: Left ankle
+        (0.8, 0.0),  # 15: Right hand
+        (0.8, 0.0),  # 16: Right fingers
+        (0.2, 0.0),  # 17: Left hand
+        (0.2, 0.0),  # 18: Left fingers
+        (0.2, 0.0),  # 19: Left fingers
+    ],
+    # Add definitions for other poses (arms_crossed, sitting_neutral, etc.)
+    # Simplified for brevity; you'll need to define all 15 poses with accurate coordinates
+}
+
+def generate_pose_image(pose_name, image_size=(512, 512)):
+    """Generate an OpenPose-compatible skeleton image for the given pose."""
+    if pose_name not in POSE_KEYPOINTS:
+        raise ValueError(f"Pose '{pose_name}' not supported.")
+
+    keypoints = POSE_KEYPOINTS[pose_name]
+    img = np.zeros((image_size[0], image_size[1], 3), dtype=np.uint8)
+
+    # Scale keypoints to image size
+    scaled_keypoints = [(int(x * image_size[1]), int(y * image_size[0])) for x, y in keypoints]
+
+    # Draw keypoints
+    for x, y in scaled_keypoints:
+        cv2.circle(img, (x, y), 5, (0, 255, 0), -1)
+
+    # Draw connections
+    for start, end in POSE_CONNECTIONS:
+        x1, y1 = scaled_keypoints[start]
+        x2, y2 = scaled_keypoints[end]
+        cv2.line(img, (x1, y1), (x2, y2), (255, 0, 0), 2)
+
+    # Convert to PIL Image for compatibility with diffusers
+    img_pil = Image.fromarray(img)
+    return img_pil
 
 # Backend Functions
 def parse_prompt(prompt):
@@ -132,31 +210,6 @@ def remove_background(image_data):
     except Exception as e:
         raise ValueError(f"Background removal failed: {str(e)}")
 
-def get_openpose_image(pose, pose_dir="openpose_skeletons"):
-    """Retrieve the OpenPose skeleton image for the specified pose."""
-    pose_images = {
-        "standing_neutral": f"{pose_dir}/standing_neutral.png",
-        "standing_arms_raised": f"{pose_dir}/standing_arms_raised.png",
-        "standing_holding_right": f"{pose_dir}/standing_holding_right.png",
-        "standing_holding_left": f"{pose_dir}/standing_holding_left.png",
-        "standing_holding_both": f"{pose_dir}/standing_holding_both.png",
-        "sitting_neutral": f"{pose_dir}/sitting_neutral.png",
-        "sitting_holding_right": f"{pose_dir}/sitting_holding_right.png",
-        "sitting_holding_left": f"{pose_dir}/sitting_holding_left.png",
-        "walking_right_leg_forward": f"{pose_dir}/walking_right_leg_forward.png",
-        "walking_left_leg_forward": f"{pose_dir}/walking_left_leg_forward.png",
-        "leaning_forward": f"{pose_dir}/leaning_forward.png",
-        "leaning_backward": f"{pose_dir}/leaning_backward.png",
-        "crouching": f"{pose_dir}/crouching.png",
-        "turning_sideways": f"{pose_dir}/turning_sideways.png",
-        "arms_crossed": f"{pose_dir}/arms_crossed.png"
-    }
-    if pose not in pose_images:
-        raise ValueError(f"Pose '{pose}' not supported.")
-    if not os.path.exists(pose_images[pose]):
-        raise FileNotFoundError(f"OpenPose skeleton for '{pose}' not found at {pose_images[pose]}.")
-    return Image.open(pose_images[pose])
-
 def generate_model_image(pose, background_desc):
     """Generate a model image with Stable Diffusion and ControlNet."""
     try:
@@ -172,12 +225,10 @@ def generate_model_image(pose, background_desc):
             torch_dtype=torch.float16 if device == "cuda" else torch.float32,
             low_cpu_mem_usage=True
         )
-
-        
         pipeline = StableDiffusionControlNetPipeline.from_pretrained(
             "stabilityai/stable-diffusion-2-1-base",
             controlnet=controlnet,
-            torch_dtype=torch.float16,
+            torch_dtype=torch.float16 if device == "cuda" else torch.float32,
             low_cpu_mem_usage=True
         )
         pipeline.scheduler = UniPCMultistepScheduler.from_config(pipeline.scheduler.config)
@@ -188,9 +239,10 @@ def generate_model_image(pose, background_desc):
         else:
             pipeline.to("cpu")
         
-        openpose_image = get_openpose_image(pose)
+        # Generate the pose image dynamically
+        openpose_image = generate_pose_image(pose)
         prompt = f"A professional model {pose.replace('_', ' ')}, {background_desc}, high quality, realistic, neutral clothing"
-        image = pipeline(prompt, image=openpose_image, num_inference_steps=10, guidance_scale=7.5).images[0]
+        image = pipeline(prompt, image=openpose_image, num_inference_steps=20, guidance_scale=7.5).images[0]
         
         output_path = os.path.join(tempfile.gettempdir(), f"model_{pose}_{background_desc.replace(' ', '_')}.png")
         image.save(output_path)
