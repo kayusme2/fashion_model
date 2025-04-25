@@ -21,6 +21,25 @@ import io
 import tempfile
 print("All imports completed")
 
+
+
+
+from fastapi import FastAPI
+print("Starting minimal FastAPI app...")
+app = FastAPI()
+print("App instance created")
+
+@app.get("/")
+async def root():
+    return {"message": "Hello, World!"}
+
+print("App setup complete")
+
+
+
+
+
+
 # Check HF_TOKEN
 HF_TOKEN = os.getenv("HF_TOKEN", "YOUR_HUGGING_FACE_TOKEN_HERE")
 if not HF_TOKEN or HF_TOKEN == "YOUR_HUGGING_FACE_TOKEN_HERE":
@@ -153,10 +172,12 @@ def generate_model_image(pose, background_desc):
             torch_dtype=torch.float16 if device == "cuda" else torch.float32,
             low_cpu_mem_usage=True
         )
+
+        
         pipeline = StableDiffusionControlNetPipeline.from_pretrained(
             "stabilityai/stable-diffusion-2-1-base",
             controlnet=controlnet,
-            torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+            torch_dtype=torch.float16,
             low_cpu_mem_usage=True
         )
         pipeline.scheduler = UniPCMultistepScheduler.from_config(pipeline.scheduler.config)
@@ -169,7 +190,7 @@ def generate_model_image(pose, background_desc):
         
         openpose_image = get_openpose_image(pose)
         prompt = f"A professional model {pose.replace('_', ' ')}, {background_desc}, high quality, realistic, neutral clothing"
-        image = pipeline(prompt, image=openpose_image, num_inference_steps=20, guidance_scale=7.5).images[0]
+        image = pipeline(prompt, image=openpose_image, num_inference_steps=10, guidance_scale=7.5).images[0]
         
         output_path = os.path.join(tempfile.gettempdir(), f"model_{pose}_{background_desc.replace(' ', '_')}.png")
         image.save(output_path)
