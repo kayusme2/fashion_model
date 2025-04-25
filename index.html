@@ -90,7 +90,7 @@
             formData.append("prompt", promptInput.value);
 
             try {
-                const response = await fetch("http://your-server-url:8000/generate", {
+                const response = await fetch("https://fashion-model.onrender.com:80/generate", {
                     method: "POST",
                     body: formData
                 });
