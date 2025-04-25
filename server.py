@@ -757,4 +757,4 @@ async def generate_ad_image_endpoint(file: UploadFile = File(...), prompt: str =
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 80))  # Use Render's PORT, default to 80
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="44.233.151.27", port=port)
