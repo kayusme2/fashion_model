@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ad Image Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        .panel {
+            flex: 1;
+            border: 1px solid #ccc;
+            padding: 20px;
+        }
+        .panel h2 {
+            margin-top: 0;
+        }
+        input[type="file"], input[type="text"], button {
+            margin: 10px 0;
+            width: 100%;
+            padding: 8px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #output-image {
+            max-width: 100%;
+            height: auto;
+        }
+        #error {
+            color: red;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Ad Image Generator</h1>
+    <div class="container">
+        <div class="panel">
+            <h2>Input Parameters</h2>
+            <input type="file" id="item-image" accept="image/*">
+            <label for="prompt">Prompt:</label>
+            <input type="text" id="prompt" placeholder="e.g., Model wearing a hat standing in a park" value="Model wearing a wristwatch in a studio">
+            <button onclick="generateImage()">Generate Ad Image</button>
+            <p id="error"></p>
+        </div>
+        <div class="panel">
+            <h2>Generated Image</h2>
+            <img id="output-image" src="" alt="Generated image will appear here">
+        </div>
+    </div>
+
+    <script>
+        async function generateImage() {
+            const imageInput = document.getElementById("item-image");
+            const promptInput = document.getElementById("prompt");
+            const errorDiv = document.getElementById("error");
+            const outputImage = document.getElementById("output-image");
+
+            errorDiv.style.display = "none";
+            outputImage.src = "";
+
+            if (!imageInput.files[0]) {
+                errorDiv.textContent = "Please upload an item image.";
+                errorDiv.style.display = "block";
+                return;
+            }
+            if (!promptInput.value.trim()) {
+                errorDiv.textContent = "Please enter a prompt.";
+                errorDiv.style.display = "block";
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("file", imageInput.files[0]);
+            formData.append("prompt", promptInput.value);
+
+            try {
+                const response = await fetch("http://your-server-url:8000/generate", {
+                    method: "POST",
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail);
+                }
+
+                const blob = await response.blob();
+                outputImage.src = URL.createObjectURL(blob);
+            } catch (error) {
+                errorDiv.textContent = error.message;
+                errorDiv.style.display = "block";
+            }
+        }
+    </script>
+</body>
+</html>
