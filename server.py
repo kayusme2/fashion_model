@@ -28,7 +28,7 @@ app = FastAPI()
 # Add CORS middleware to allow frontend requests
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://fashion-model-front.onrender.com", "http://localhost:10000"],  # Replace with your frontend URL
+    allow_origins=["https://fashion-model-front.onrender.com", "http://localhost:8000"],  # Replace with your frontend URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
