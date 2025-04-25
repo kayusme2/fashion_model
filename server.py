@@ -754,7 +754,11 @@ async def generate_ad_image_endpoint(file: UploadFile = File(...), prompt: str =
         print(f"Error in /generate endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to generate image. Please try again or contact support.")
 
+
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", 10000))  # Use Render's PORT, default to 10000
+    print("Starting server.py...")
+    port = int(os.getenv("PORT", 8000))
+    print(f"Binding to port: {port}")
     uvicorn.run(app, host="0.0.0.0", port=port)
+    print("Uvicorn started successfully")
